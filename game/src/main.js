@@ -15,6 +15,7 @@ import { initMissions, updateMissions, tryMissionInteract } from './missions.js'
 import { initHud, updateHud, showMessage, showDialogue } from './hud.js';
 import { initEffects, updateEffects } from './effects.js';
 import { stageShot } from './shots.js';
+import { initQuality, qualityTick } from './quality.js';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
@@ -189,6 +190,7 @@ function boot() {
   spawnParkedCars();
   spawnTraffic();
   spawnPeds();
+  initQuality(lowFx);
   initEffects();
   initMissions();
   createPlayer(12, 2);
@@ -303,10 +305,14 @@ function boot() {
 function step(dt) {
   G.time += dt;
   G.timePlayed += dt;
-  // Screenshot mode: keep the car rolling so the frame reads as a chase,
-  // not a parked car. The player still steers nothing; it is the same
-  // driving code, just with the throttle held.
-  if (G.shotMode && G.player.inCar) G.keys.up = true;
+  if (G.shotMode) {
+    // Screenshot staging: hold the staged frame exactly (the staged car,
+    // police and camera do not drift while the screenshot driver waits),
+    // while the HUD and the sea keep moving so the frame reads as alive.
+    updateHud(dt);
+    animateSea(dt);
+    return;
+  }
   updatePlayer(dt);
   updateTraffic(dt);
   updatePeds(dt);
@@ -329,6 +335,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - last) / 1000, MAX_FRAME);
   last = now;
+  qualityTick();
   if (G.mode === 'playing') {
     accumulator += dt;
     while (accumulator >= STEP) {
@@ -360,7 +367,8 @@ function frame(now) {
     G.camera.lookAt(px, 2, pz);
   } else {
     $('hud').style.display = 'block';
-    updateCamera(dt);
+    // In shot mode the camera stays exactly where the staging put it.
+    if (!G.shotMode) updateCamera(dt);
   }
   G.renderer.render(G.scene, G.camera);
 }

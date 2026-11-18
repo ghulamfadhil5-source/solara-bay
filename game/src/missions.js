@@ -10,7 +10,7 @@ import { addWanted, clearWanted } from './police.js';
 import { playChime, playGunshot } from './audio.js';
 import { spawnTracer } from './effects.js';
 
-const REWARDS = [150, 200, 350, 600];
+const REWARDS = [150, 200, 350, 600, 800];
 
 let sanaMesh = null;
 let beacon = null;
@@ -57,6 +57,17 @@ export const MISSION_DEFS = [
       { objective: 'Take down all 4 guards', target: { x: 0, z: 132 } },
       { objective: 'Grab the crate at the end of the pier', target: { x: 0, z: 140 } },
       { objective: 'Bring the crate back to Sana', target: { x: 12, z: 4 } },
+    ],
+  },
+  {
+    id: 'sunset-score',
+    title: 'Sunset Score',
+    brief: 'Sana: "One last score, Kai. Vega\'s lockbox is by the Marina Hotel and his crew is watching it. Take them down, grab the case, bring it to me — that clears your two grand."',
+    stages: [
+      { objective: 'Reach the Marina Hotel', target: { x: 48, z: -60 } },
+      { objective: 'Take down all 3 guards', target: { x: 48, z: -60 } },
+      { objective: 'Grab the case at the Marina Hotel', target: { x: 48, z: -60 } },
+      { objective: 'Bring the case back to Sana', target: { x: 12, z: 4 } },
     ],
   },
 ];
@@ -229,7 +240,8 @@ function completeMission() {
   G.money += reward;
   G.missionsDone.push(G.mission.id);
   G.hudMessage && G.hudMessage(`Mission complete: ${G.mission.title} — earned $${reward}!`);
-  G.showDialogue && G.showDialogue(`Sana: "Nice work, Kai. $${reward} is yours. Debt left: $${2000 - G.missionsDone.reduce((s, _, i) => s + REWARDS[i], 0)}."`, 'Sana');
+  const debtLeft = Math.max(0, 2000 - G.missionsDone.reduce((s, _, i) => s + REWARDS[i], 0));
+  G.showDialogue && G.showDialogue(`Sana: "Nice work, Kai. $${reward} is yours. Debt left: $${debtLeft}."`, 'Sana');
   playChime();
   G.mission = null;
   G.missionIndex++;
@@ -271,8 +283,7 @@ function spawnPassenger(x, z) {
   passengerMesh = mesh;
 }
 
-function spawnGuards() {
-  const spots = [[-2, 128], [2, 132], [-2, 138], [2, 142]];
+function spawnGuards(spots = [[-2, 128], [2, 132], [-2, 138], [2, 142]]) {
   for (const [x, z] of spots) {
     const mesh = makeGuardMesh();
     mesh.position.set(x, 0, z);
@@ -366,6 +377,30 @@ export function updateMissions(dt) {
     } else if (m.stage === 2) {
       if (dist < 3) {
         G.hudMessage && G.hudMessage('Crate secured — get it back to Sana.');
+        advanceStage();
+      }
+    } else if (m.stage === 3) {
+      if (dist < 4) advanceStage();
+    }
+  } else if (m.id === 'sunset-score') {
+    if (m.stage === 0) {
+      if (dist < 8) {
+        spawnGuards([[46, -56], [50, -64], [46, -68]]);
+        G.hudMessage && G.hudMessage("Vega's crew is here — take them down!");
+        advanceStage();
+      }
+    } else if (m.stage === 1) {
+      updateGuards(dt);
+      const alive = G.guards.filter((g) => g.health > 0).length;
+      if (alive === 0) {
+        spawnCrate(48, -60);
+        advanceStage();
+      }
+    } else if (m.stage === 2) {
+      if (dist < 3) {
+        // Grabbing the case draws the heat: the drive back is the finale.
+        addWanted(260);
+        G.hudMessage && G.hudMessage('Case secured — the PD is on to you. Get it back to Sana.');
         advanceStage();
       }
     } else if (m.stage === 3) {

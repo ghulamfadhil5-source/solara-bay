@@ -48,6 +48,10 @@ export const G = {
   camDist: 9,
   shake: 0,
 
+  // Quality scaling (quality.js)
+  qualityTier: 0, // 0 high, 1 balanced, 2 low
+  qualityFps: 0,
+
   // Input (filled by input.js)
   keys: {},
   mouseDown: false,

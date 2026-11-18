@@ -315,6 +315,32 @@ export function buildWorld() {
   plaza.position.set(PLACES.plaza.x, 0.05, PLACES.plaza.z);
   plaza.receiveShadow = true;
   scene.add(plaza);
+  // Benches ring the fountain, facing it.
+  const benchMat = new THREE.MeshLambertMaterial({ color: 0x8a6a45 });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const bx = PLACES.plaza.x + Math.sin(a) * 6.5;
+    const bz = PLACES.plaza.z + Math.cos(a) * 6.5;
+    const bench = new THREE.Group();
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.14, 0.6), benchMat);
+    seat.position.y = 0.5;
+    seat.castShadow = true;
+    bench.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 0.12), benchMat);
+    back.position.set(0, 0.85, -0.28);
+    bench.add(back);
+    for (const lx of [-0.8, 0.8]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.5), benchMat);
+      leg.position.set(lx, 0.25, 0);
+      bench.add(leg);
+    }
+    bench.position.set(bx, 0, bz);
+    bench.rotation.y = a + Math.PI;
+    scene.add(bench);
+  }
+  // Two palms shade the plaza corners.
+  makePalm(scene, 5, 19, rand);
+  makePalm(scene, 19, 5, rand);
   const fountainBase = new THREE.Mesh(
     new THREE.CylinderGeometry(3, 3.4, 0.8, 20),
     new THREE.MeshLambertMaterial({ color: 0x9aa0a8 }),
@@ -394,6 +420,36 @@ export function buildWorld() {
       post.position.set(PLACES.pier.x + dx, 0.2, z);
       scene.add(post);
     }
+  }
+  // Pier lamps: warm globes on posts, so the pier glows at dusk.
+  const lampPoleMat = new THREE.MeshLambertMaterial({ color: 0x2a2f36 });
+  const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
+  for (let i = 0; i < 4; i++) {
+    const z = 124 + i * 6;
+    const side = i % 2 === 0 ? -3 : 3;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 3, 8), lampPoleMat);
+    pole.position.set(PLACES.pier.x + side, 2.1, z);
+    scene.add(pole);
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), lampGlowMat);
+    globe.position.set(PLACES.pier.x + side, 3.75, z);
+    scene.add(globe);
+  }
+
+  // --- Beach umbrellas on the sand ---
+  const umbrellaColors = [0xe05a5a, 0x5a8ae0, 0xe8b820];
+  for (let i = 0; i < 3; i++) {
+    const ux = [-40, 40, 70][i];
+    const uz = 113 + (i % 2);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 8), lampPoleMat);
+    pole.position.set(ux, 1.2, uz);
+    scene.add(pole);
+    const top = new THREE.Mesh(
+      new THREE.ConeGeometry(2, 1, 10),
+      new THREE.MeshLambertMaterial({ color: umbrellaColors[i] }),
+    );
+    top.position.set(ux, 2.8, uz);
+    top.castShadow = true;
+    scene.add(top);
   }
 
   // --- Cash pickups scattered on sidewalks ---

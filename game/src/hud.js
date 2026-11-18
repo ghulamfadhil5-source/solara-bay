@@ -4,7 +4,8 @@
 
 import { CFG } from './config.js';
 import { G } from './state.js';
-import { currentObjective, currentTarget } from './missions.js';
+import { currentObjective, currentTarget, MISSION_DEFS } from './missions.js';
+import { nearestParkedCar } from './vehicles.js';
 
 let els = {};
 let minimap = null;
@@ -77,6 +78,13 @@ export function updateHud(dt) {
   els.objective.textContent = currentObjective();
   // Crosshair only on foot, interact prompt near things.
   els.crosshair.style.display = !player.inCar && G.mode === 'playing' ? 'block' : 'none';
+  // "Press E" when a car is in reach, or Sana has a job waiting.
+  let showInteract = false;
+  if (!player.inCar && G.mode === 'playing') {
+    if (nearestParkedCar(player.pos.x, player.pos.z, 3.4)) showInteract = true;
+    else if (!G.mission && G.missionIndex < MISSION_DEFS.length && Math.hypot(player.pos.x - 12, player.pos.z - 4) < 4) showInteract = true;
+  }
+  els.interact.style.display = showInteract ? 'block' : 'none';
   // Message + dialogue timers.
   if (messageTimer > 0) {
     messageTimer -= dt;

@@ -66,7 +66,7 @@ function carAhead(car) {
   const fz = Math.cos(car.heading);
   let best = Infinity;
   for (const other of G.cars) {
-    if (other === car) continue;
+    if (other === car || other.inactive) continue;
     const dx = other.pos.x - car.pos.x;
     const dz = other.pos.z - car.pos.z;
     const along = dx * fx + dz * fz;
@@ -79,6 +79,7 @@ function carAhead(car) {
 export function updateTraffic(dt) {
   const rand = Math.random;
   for (const car of G.traffic) {
+    if (car.inactive) continue;
     // Slow down for the car ahead; stop if it is very close.
     const ahead = carAhead(car);
     let target = car.aiSpeed;
@@ -125,7 +126,9 @@ export function updateTraffic(dt) {
   }
   // Gentle car-vs-car separation for traffic.
   for (let i = 0; i < G.cars.length; i++) {
+    if (G.cars[i].inactive) continue;
     for (let j = i + 1; j < G.cars.length; j++) {
+      if (G.cars[j].inactive) continue;
       collideCars(G.cars[i], G.cars[j]);
     }
   }
@@ -185,6 +188,7 @@ export function spawnPeds() {
 export function updatePeds(dt) {
   const player = G.player;
   for (const ped of G.peds) {
+    if (ped.inactive) continue;
     if (ped.state === 'down') {
       ped.fallTimer -= dt;
       if (ped.fallTimer <= 0) {

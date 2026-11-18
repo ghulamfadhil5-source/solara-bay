@@ -163,7 +163,11 @@ export function updatePolice(dt) {
     const blink = Math.floor(G.time * 6) % 2 === 0;
     car.mesh.userData.lightRed.material.color.setHex(blink ? 0xff2222 : 0x550000);
     car.mesh.userData.lightBlue.material.color.setHex(blink ? 0x000055 : 0x2244ff);
-    // Ram the player: car or on foot.
+    // Ram the player when very close; hold them when cornered. The bust
+    // accumulates while the car is inside the bust radius (5u), not only
+    // inside the ram radius (3.4u): at a low frame rate the car jumps
+    // metres per step, so the ram zone alone flickers and the hold can
+    // never build. The hold decays only once the car is properly away.
     if (dist < 3.4) {
       const playerSpeed = player.inCar ? Math.abs(player.car.speed) : 0;
       if (player.inCar) {
@@ -180,15 +184,17 @@ export function updatePolice(dt) {
         player.pos.z += (dz / (dist || 1)) * -2;
         car.speed *= 0.3;
       }
+    }
+    if (dist < CFG.bustDistance) {
       // Busted: slow player, police car holding close.
       const slow = player.inCar ? Math.abs(player.car.speed) < 1.5 : true;
-      if (slow && dist < CFG.bustDistance) {
+      if (slow) {
         bustHold += dt;
       } else {
-        bustHold = 0;
+        bustHold = Math.max(0, bustHold - dt * 2);
       }
     } else {
-      bustHold = 0;
+      bustHold = Math.max(0, bustHold - dt * 2);
     }
   }
   G.bustHold = bustHold;
