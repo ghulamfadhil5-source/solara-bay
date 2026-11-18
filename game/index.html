@@ -3,16 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>Solara Bay — Open-World Crime Game</title>
+<link rel="icon" href="data:,">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0e7490; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; z-index: 5; }
+  .panel { background: rgba(10, 20, 30, 0.55); border-radius: 10px; padding: 8px 12px; }
+  #top-left { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; }
+  #health-bar { width: 200px; height: 16px; background: rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden; }
+  #health-fill { height: 100%; width: 100%; background: #37a05a; }
+  #health-row { display: flex; align-items: center; gap: 8px; }
+  #money { font-size: 20px; font-weight: 700; color: #7ee2a0; }
+  #top-right { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  #stars { font-size: 26px; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+  #minimap { border: 2px solid rgba(255,255,255,0.7); border-radius: 8px; background: #2a4a3a; }
+  #mission-box { position: absolute; left: 12px; bottom: 12px; max-width: 420px; }
+  #mission-title { font-weight: 800; font-size: 15px; color: #ffd23e; }
+  #objective { font-size: 14px; line-height: 1.35; }
+  #speed-box { position: absolute; right: 12px; bottom: 12px; text-align: right; }
+  #speed { font-size: 34px; font-weight: 800; line-height: 1; }
+  #speed-label { font-size: 12px; color: #cfe8ff; }
+  #dialogue { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); width: 520px; max-width: 86vw; display: none; }
+  #dialogue-speaker { font-weight: 800; color: #c99aff; }
+  #dialogue-text { font-size: 15px; line-height: 1.4; margin-top: 2px; }
+  #message { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); font-size: 16px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.7); opacity: 0; transition: opacity 0.3s; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; display: none; }
+  #crosshair::before, #crosshair::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 3px #000; }
+  #crosshair::before { left: 6px; top: 0; width: 2px; height: 14px; }
+  #crosshair::after { left: 0; top: 6px; width: 14px; height: 2px; }
+  #interact { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-size: 15px; font-weight: 700; display: none; }
+  #controls-hint { position: absolute; right: 12px; bottom: 76px; font-size: 12px; color: #dfeefc; text-align: right; line-height: 1.5; }
+  .screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 10; color: #fff; text-align: center; background: rgba(8, 24, 38, 0.55); }
+  .screen h1 { font-size: 56px; margin: 0 0 4px; letter-spacing: 2px; color: #ffd23e; text-shadow: 0 4px 18px rgba(0,0,0,0.6); }
+  .screen h2 { font-size: 40px; margin: 0 0 8px; color: #ffd23e; }
+  .screen p { max-width: 560px; font-size: 16px; line-height: 1.5; margin: 6px 0; }
+  .screen .controls { font-size: 14px; color: #cfe8ff; line-height: 1.7; }
+  .screen button { pointer-events: auto; margin: 10px 6px 0; padding: 12px 28px; font-size: 17px; font-weight: 700; border: none; border-radius: 10px; background: #ffd23e; color: #20242a; cursor: pointer; }
+  .screen button:hover { background: #ffe27a; }
+  .screen button.secondary { background: rgba(255,255,255,0.2); color: #fff; }
   #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 </style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<div id="app"></div>
+<div id="hud">
+  <div id="top-left">
+    <div class="panel" id="health-row"><div id="health-bar"><div id="health-fill"></div></div><span id="health-text">100</span></div>
+    <div class="panel" id="money">$50</div>
+  </div>
+  <div id="top-right">
+    <div id="stars">☆☆☆☆☆</div>
+    <canvas id="minimap" width="190" height="190"></canvas>
+  </div>
+  <div id="mission-box" class="panel">
+    <div id="mission-title">Solara Bay</div>
+    <div id="objective">Go to Sana at Coral Plaza — press E to talk.</div>
+  </div>
+  <div id="speed-box"><div id="speed"></div><div id="speed-label"></div></div>
+  <div id="dialogue" class="panel"><div id="dialogue-speaker"></div><div id="dialogue-text"></div></div>
+  <div id="message"></div>
+  <div id="crosshair"></div>
+  <div id="interact" class="panel">Press E</div>
+  <div id="controls-hint">WASD move / drive &nbsp;·&nbsp; E enter car / talk<br>Mouse click shoot &nbsp;·&nbsp; Shift run &nbsp;·&nbsp; Esc pause</div>
+</div>
+
+<div id="start-screen" class="screen">
+  <h1>SOLARA BAY</h1>
+  <p>An open-world crime game. Kai Marlin is new in town and owes fixer Sana Reyes $2,000.
+  Drive the cab, run the parcels, steal the sports car, take the pier — and stay out of the Bay PD's way.</p>
+  <p class="controls">WASD — walk / drive &nbsp;·&nbsp; E — enter a car / talk to Sana<br>
+  Mouse click — shoot &nbsp;·&nbsp; Shift — run &nbsp;·&nbsp; Esc — pause &nbsp;·&nbsp; progress saves automatically</p>
+  <div>
+    <button id="start-btn">Start New Game</button>
+    <button id="continue-btn" class="secondary">Continue</button>
+  </div>
+</div>
+
+<div id="pause-screen" class="screen">
+  <h2>Paused</h2>
+  <p>Solara Bay waits for no one — except right now.</p>
+  <div>
+    <button id="resume-btn">Resume</button>
+    <button id="save-btn" class="secondary">Save Game</button>
+    <button id="menu-btn" class="secondary">Main Menu</button>
+  </div>
+</div>
+
+<div id="busted-screen" class="screen">
+  <h2>BUSTED</h2>
+  <p>The Bay PD caught up with you.</p>
+  <p id="busted-fine"></p>
+  <div><button id="busted-btn">Walk Free</button></div>
+</div>
+
+<div id="gameover-screen" class="screen">
+  <h2>KNOCKED OUT</h2>
+  <p>You wake up at Bay Clinic, lighter in the pocket.</p>
+  <p id="gameover-fee"></p>
+  <div><button id="gameover-btn">Leave the Clinic</button></div>
+</div>
+
+<div id="story-screen" class="screen">
+  <h2>STORY COMPLETE</h2>
+  <p>The debt is paid. Two grand, four jobs, one city — Solara Bay is yours now, Kai.
+  Keep driving, keep the heat low, and enjoy the sunset.</p>
+  <div><button id="story-btn">Keep Playing</button></div>
+</div>
+
 <p id="status" role="status" aria-live="polite"></p>
 <script type="module" src="./src/main.js"></script>
 </body>
