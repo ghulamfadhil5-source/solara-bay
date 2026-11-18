@@ -139,6 +139,7 @@ export function updatePolice(dt) {
 
   // --- Police cars chase and ram ---
   let bustHold = G.bustHold || 0;
+  let nearestDist = Infinity;
   for (const car of G.policeCars) {
     const dx = player.pos.x - car.pos.x;
     const dz = player.pos.z - car.pos.z;
@@ -185,7 +186,18 @@ export function updatePolice(dt) {
         car.speed *= 0.3;
       }
     }
-    if (dist < CFG.bustDistance) {
+    // Track the nearest patrol car; the bust hold is applied once per step
+    // below, on the nearest car only — a far car still en route must not
+    // drain the hold a near car is building.
+    nearestDist = Math.min(nearestDist, dist);
+  }
+  // Bust hold, once per step on the nearest patrol car. The hold accumulates
+  // while the car is inside the bust radius (5u), not only inside the ram
+  // radius (3.4u): at a low frame rate the car jumps metres per step, so
+  // the ram zone alone flickers and the hold can never build. The hold
+  // decays at the same rate once the nearest car is properly away.
+  if (G.policeCars.length > 0) {
+    if (nearestDist < CFG.bustDistance) {
       // Busted: slow player, police car holding close.
       const slow = player.inCar ? Math.abs(player.car.speed) < 1.5 : true;
       if (slow) {
